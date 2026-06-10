@@ -1,0 +1,290 @@
+﻿<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mətbəx & Aşbaz Ekranı 👨‍🍳</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #1e272e;
+            color: #ffffff;
+            padding: 20px;
+        }
+
+        .chef-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #3d4e5d;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        .chef-title {
+            font-size: 26px;
+            color: #f1c40f;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chef-status {
+            background-color: #27ae60;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        
+
+        .orders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .order-card {
+            background-color: #2c3e50;
+            border: 2px solid #34495e;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+
+            .order-card:hover {
+                transform: translateY(-3px);
+            }
+
+        .order-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dashed #7f8c8d;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
+        }
+
+        .table-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        .order-time {
+            font-size: 13px;
+            color: #bdc3c7;
+            background-color: #34495e;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        .items-list {
+            flex: 1;
+            list-style: none;
+            margin-bottom: 15px;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #3d4e5d;
+            font-size: 16px;
+        }
+
+            .item-row:last-child {
+                border-bottom: none;
+            }
+
+        .item-quantity {
+            background-color: #e67e22;
+            color: white;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .complete-btn {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            transition: background 0.2s;
+            width: 100%;
+        }
+
+            .complete-btn:hover {
+                background-color: #27ae60;
+            }
+
+        .no-orders {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 50px;
+            color: #7f8c8d;
+            font-size: 18px;
+            border: 2px dashed #34495e;
+            border-radius: 8px;
+        }
+
+        .order-card.delayed {
+            border: 3px solid #e74c3c !important;
+            background-color: #fadbd8 !important;
+            animation: pulse 1.5s infinite;
+        }
+        
+    </style>
+</head>
+<body>
+
+    <div class="chef-header">
+        <h1 class="chef-title">👨‍🍳 Mətbəx Sifariş Paneli</h1>
+        <div class="chef-status">Sinxronizasiya Aktivdir (Canlı)</div>
+    </div>
+
+    <div class="orders-grid" id="kitchenOrdersGrid">
+        
+    </div>
+
+    <script>
+                let previousOrdersCount = 0;
+
+       
+        function playAlertSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 notu
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.15);
+            } catch (e) {
+                console.log("Səs çalınması bloklandı. Səhifəyə bir dəfə klikləyin.");
+            }
+        }
+
+                function renderKitchenOrders() {
+            const grid = document.getElementById('kitchenOrdersGrid');
+            const kitchenOrders = JSON.parse(localStorage.getItem('rest_kitchen_orders')) || [];
+            const now = new Date();
+
+            const activeOrders = kitchenOrders.filter(ko => ko.status === 'pending');
+            grid.innerHTML = '';
+
+            if (activeOrders.length === 0) {
+                grid.innerHTML = '<div class="no-orders">🍳 Hazırda gözləyən sifariş yoxdur.</div>';
+                return;
+            }
+
+            activeOrders.forEach(order => {
+                const [hours, minutes] = order.time.split(':').map(Number);
+                const orderTime = new Date();
+                orderTime.setHours(hours, minutes, 0, 0);
+                const isDelayed = (now - orderTime) / (1000 * 60) > 20;
+
+                const card = document.createElement('div');
+                card.className = `order-card ${isDelayed ? 'delayed' : ''}`;
+
+                if (isDelayed && !order.alerted) {
+                    playAlertSound(); 
+                    order.alerted = true; 
+                    localStorage.setItem('rest_kitchen_orders', JSON.stringify(kitchenOrders));
+                }
+
+                let itemsHtml = order.items.map(i => `<li class="item-row"><span>${i.name}</span> <span class="item-quantity">${i.quantity} ədəd</span></li>`).join('');
+
+                card.innerHTML = `
+                    <div class="order-card-header">
+                        <span class="table-name">${order.tableName} ${isDelayed ? '⚠️ GECİKİB!' : ''}</span>
+                        <span class="order-time">🕒 ${order.time}</span>
+                    </div>
+                    <ul class="items-list">${itemsHtml}</ul>
+                    <button class="complete-btn" onclick="completeOrder(${order.id})">Hazırdır ✔</button>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+
+        function completeOrder(orderId) {
+            let kitchenOrders = JSON.parse(localStorage.getItem('rest_kitchen_orders')) || [];
+
+            const order = kitchenOrders.find(ko => ko.id === orderId);
+
+            if (order) {
+                order.status = 'ready'; 
+                localStorage.setItem('rest_kitchen_orders', JSON.stringify(kitchenOrders));
+
+               
+                renderKitchenOrders();
+            }
+        }
+
+        
+        renderKitchenOrders();
+
+       
+        setInterval(renderKitchenOrders, 2000);
+                
+        function checkOrderDelays() {
+            let kitchenOrders = JSON.parse(localStorage.getItem('rest_kitchen_orders')) || [];
+            const now = new Date();
+
+            let needsUpdate = false;
+
+            kitchenOrders.forEach(order => {
+                
+                if (order.status === 'pending') {
+                    const [hours, minutes] = order.time.split(':').map(Number);
+                    const orderTime = new Date();
+                    orderTime.setHours(hours, minutes, 0, 0);
+
+                    
+                    const diffInMinutes = (now - orderTime) / (1000 * 60);
+
+                    if (diffInMinutes > 20 && order.alerted === false) {
+                        
+                        alert(`⚠️ GECİKMƏ! ${order.tableName} sifarişi 20 dəqiqədən çoxdur gözləyir!`);
+
+                        
+                        order.alerted = true;
+                        needsUpdate = true;
+                    }
+                }
+            });
+
+            if (needsUpdate) {
+                localStorage.setItem('rest_kitchen_orders', JSON.stringify(kitchenOrders));
+            }
+        }
+
+        
+        setInterval(checkOrderDelays, 30000); 
+    </script>
+</body>
+</html>

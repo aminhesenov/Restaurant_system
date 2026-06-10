@@ -1,0 +1,134 @@
+﻿<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restoran İdarəetmə Sistemi (Tam Yaddaşlı)</title>
+</head>
+<body>
+
+    <div class="left-section">
+        <div>
+            <div class="section-header-row">
+                <h2 class="section-title">Masalar</h2>
+                <div class="header-actions">
+                    <a asp-controller="Home" asp-action="Chef" target="_blank" style="background-color: #e67e22; color: white; padding: 5px; border-radius: 5px; text-decoration: none; font-weight: bold; float: right; margin-top: -5px;">
+                        Mətbəx Ekranını Aç 👨‍🍳
+                    </a>
+                    <button onclick="resetSalesArchive()" style="background-color: maroon; font-weight: bold; color: white; padding: 5px; border-radius: 5px;">Excel hesabatı sıfırla 🗑️</button>
+                    <button class="action-btn excel-report-btn" onclick="exportToExcel()" title="Excel hesabatını yüklə">Excel Hesabatı 📊</button>
+                    <button class="action-btn" onclick="addTable()" title="Masa Əlavə Et">+</button>
+                    <button class="action-btn" onclick="removeTable()" title="Sonuncu Masanı Sil">−</button>
+                    <button class="action-btn edit-menu-toggle-btn" id="toggleFormBtn" onclick="toggleMenuForm()">Menyunu redaktə et</button>
+                </div>
+            </div>
+            <div class="tables-grid" id="tablesGrid"></div>
+        </div>
+
+        <div class="add-product-form" id="addProductFormPanel">
+            <h3 class="section-title" id="formPanelTitle" style="font-size: 16px; margin-bottom: 12px; border-bottom: none; padding:0; color:#34495e;">Menyuya yeni yemək əlavə et</h3>
+            <input type="hidden" id="editProductId" value="">
+            <div class="form-group">
+                <input type="text" id="newProductName" class="form-control" placeholder="Yeməyin adı">
+                <input type="number" id="newProductPrice" class="form-control" placeholder="Qiymət (AZN)" min="0" step="0.1">
+            </div>
+            <div class="form-group">
+                <select id="newProductCategory" class="form-control">
+                    <option value="qazan">Qazan yeməkləri</option>
+                    <option value="manqal">Manqal yeməkləri</option>
+                    <option value="salat">Salatlar</option>
+                    <option value="sorba">Şorbalar</option>
+                    <option value="meyve">Fast food</option>
+                    <option value="ickiler">İçkilər</option>
+                </select>
+            </div>
+            <button class="action-btn" id="formSubmitBtn" style="width: 100%; padding: 10px;" onclick="saveProduct()">Menyuya Əlavə Et</button>
+        </div>
+    </div>
+
+    <div class="order-section">
+        <div class="order-header">
+            <h3 id="selectedTableTitle">Masa seçilməyib</h3>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="menuSearchInput" class="search-input" placeholder="Yemək adı ilə axtar..." oninput="handleSearchInput()">
+        </div>
+
+        <div class="category-tabs" id="categoryTabs">
+            <button class="category-tab active-tab" onclick="switchCategory('all')">Hamısı</button>
+            <button class="category-tab" onclick="switchCategory('qazan')">Qazan yeməkləri</button>
+            <button class="category-tab" onclick="switchCategory('manqal')">Manqal yeməkləri</button>
+            <button class="category-tab" onclick="switchCategory('salat')">Salatlar</button>
+            <button class="category-tab" onclick="switchCategory('sorba')">Şorbalar</button>
+            <button class="category-tab" onclick="switchCategory('meyve')">Fast food</button>
+            <button class="category-tab" onclick="switchCategory('ickiler')">İçkilər</button>
+        </div>
+
+        <div class="menu-container">
+            <div class="menu-grid" id="menuGrid"></div>
+        </div>
+
+        <div class="order-items-list" id="orderItemsList">
+            <p style="color: #95a5a6; text-align: center; margin-top: 50px;">Sifarişə başlamaq üçün masa seçin.</p>
+        </div>
+
+        <div class="order-footer">
+            <div id="paymentArea" style="display: none;" class="payment-calculation-box">
+                <div class="cash-row">
+                    <span style="font-weight: 600; color: #555;">Ödənilən Məbləğ:</span>
+                    <input type="number" class="cash-input" id="amountPaidInput" value="0" min="0" step="0.5" oninput="calculateChange()">
+                </div>
+                <div class="cash-row" style="font-weight: bold; color: #e74c3c; margin-top: 5px;">
+                    <span>Qaytarılacaq Qalıq:</span>
+                    <span id="changeAmount">0.00 AZN</span>
+                </div>
+            </div>
+
+            <div class="total-row">
+                <span>Cəmi:</span>
+                <span id="totalAmount">0.00 AZN</span>
+            </div>
+
+            <div class="footer-buttons-group">
+                <button class="receipt-trigger-btn" id="kitchenBtn" style="background-color: #e67e22;" onclick="sendToKitchen()" disabled>Mətbəxə Göndər 🍳</button>
+                <button class="receipt-trigger-btn" id="receiptBtn" onclick="previewReceipt()" disabled>Qəbzi Göstər</button>
+                <button class="checkout-btn" id="checkoutBtn" onclick="closeAccount()" disabled>Ödənişi Tamamla</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="receipt-modal" id="receiptModal">
+        <div class="receipt-wrapper">
+            <div id="printableReceiptArea">
+                <div class="receipt-title">RESTORAN KABABÇI</div>
+                <div class="receipt-center">Bakı şəhəri, Azərbaycan</div>
+                <div class="receipt-divider"></div>
+                <div id="receiptMeta"></div>
+                <div class="receipt-divider"></div>
+                <div style="font-weight: bold; display: flex; justify-content: space-between;">
+                    <span>Məhsul adı x Say</span>
+                    <span>Məbləğ</span>
+                </div>
+                <div class="receipt-divider"></div>
+                <div id="receiptItemsBody"></div>
+                <div class="receipt-divider"></div>
+                <div class="receipt-total-bold">
+                    <span>CƏMİ:</span>
+                    <span id="receiptTotalVal">0.00 AZN</span>
+                </div>
+                <div class="receipt-line-item" id="receiptPaymentDetails"></div>
+                <div class="receipt-divider"></div>
+                <div class="receipt-center" style="font-style: italic; font-size: 12px; margin-top: 10px;">
+                    Ziyarətiniz üçün təşəkkür edirik!
+                </div>
+            </div>
+            <div class="receipt-actions">
+                <button class="action-btn btn-close" onclick="closeReceiptModal()">Bağla</button>
+                <button class="action-btn btn-print" onclick="printReceipt()">Çap Et</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
